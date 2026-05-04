@@ -1,0 +1,74 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 角色：ADMIN | OPERATOR | VIEWER（字符串）
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  displayName  String
+  role         String   @default("OPERATOR")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  movements    StockMovement[]
+}
+
+// 一级：设备大类（机顶盒、ONU、分光器…）
+model DeviceType {
+  id          String        @id @default(cuid())
+  name        String        @unique
+  description String?
+  sortOrder   Int           @default(0)
+  models      DeviceModel[]
+}
+
+// 二级：型号
+model DeviceModel {
+  id           String     @id @default(cuid())
+  deviceTypeId String
+  deviceType   DeviceType @relation(fields: [deviceTypeId], references: [id], onDelete: Cascade)
+  name         String
+  sortOrder    Int        @default(0)
+  inventory    Inventory?
+  movements    StockMovement[]
+
+  @@unique([deviceTypeId, name])
+}
+
+model Inventory {
+  id            String      @id @default(cuid())
+  deviceModelId String      @unique
+  deviceModel   DeviceModel @relation(fields: [deviceModelId], references: [id], onDelete: Cascade)
+  quantity      Int         @default(0)
+  updatedAt     DateTime    @updatedAt
+}
+
+// type: "IN" | "OUT"
+model StockMovement {
+  id            String      @id @default(cuid())
+  documentNo    String      @unique
+  type          String
+  deviceModelId String
+  deviceModel   DeviceModel @relation(fields: [deviceModelId], references: [id])
+  quantity      Int
+  operatorId    String
+  operator      User        @relation(fields: [operatorId], references: [id])
+  purpose       String?
+  remark        String?
+  createdAt     DateTime    @default(now())
+}
+
+model QrLoginSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  status    String
+  userId    String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
